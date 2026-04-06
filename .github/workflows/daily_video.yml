@@ -1,31 +1,12 @@
-# .github/workflows/daily_video.yml
-# ─────────────────────────────────────────────
-# Runs the pipeline daily on GitHub Actions (FREE tier)
-# GitHub Actions free tier: 2,000 minutes/month
-# Each pipeline run takes ~10-15 minutes → ~60 runs/month
-# That's 2 videos per day for free!
-#
-# SETUP:
-# 1. Push your project to GitHub (private repo is fine)
-# 2. Go to: Settings → Secrets and variables → Actions
-# 3. Add all your .env values as Repository Secrets
-# 4. Push this file to .github/workflows/daily_video.yml
-# GitHub will automatically run it on schedule.
-
 name: Daily Auto Shorts Pipeline
 
 on:
-    schedule:
+  schedule:
     - cron: "0 4 * * *"
     - cron: "0 7 * * *"
     - cron: "0 10 * * *"
     - cron: "0 13 * * *"
     - cron: "0 16 * * *"
-
-    # Uncomment for twice daily (9 AM + 5 PM UTC):
-    # - cron: "0 9,17 * * *"
-
-  # Also allows manual trigger from GitHub UI
   workflow_dispatch:
     inputs:
       skip_youtube:
@@ -35,12 +16,15 @@ on:
       skip_instagram:
         description: "Skip Instagram upload"
         type: boolean
-        default: false
+        default: true
 
 jobs:
   generate_and_upload:
     runs-on: ubuntu-latest
-    timeout-minutes: 30  # kill if it hangs
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: auto_shorts
 
     steps:
       - name: Checkout repo
@@ -51,6 +35,7 @@ jobs:
         with:
           python-version: "3.11"
           cache: "pip"
+          cache-dependency-path: auto_shorts/requirements.txt
 
       - name: Install FFmpeg
         run: |
@@ -63,7 +48,7 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Create config directory
+      - name: Create runtime directories
         run: mkdir -p config output/videos output/audio output/subtitles output/assets logs
 
       - name: Write YouTube token from secret
@@ -74,29 +59,34 @@ jobs:
         if: ${{ !inputs.skip_youtube }}
         run: echo '${{ secrets.YOUTUBE_CLIENT_SECRETS_JSON }}' > config/yt_client_secrets.json
 
-      - name: Run pipeline
+      - name: Run scheduled pipeline
+        if: ${{ github.event_name == 'schedule' }}
         env:
-          # LLM
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
-
-          # Stock media
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
-
-          # TTS
           TTS_ENGINE: edge
           TTS_VOICE: en-US-AriaNeural
-
-          # Instagram
-          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
-          INSTAGRAM_BUSINESS_ID: ${{ secrets.INSTAGRAM_BUSINESS_ID }}
-
-          # Settings
           YOUTUBE_TOKEN_FILE: config/yt_token.json
           LOG_LEVEL: INFO
+        run: python main.py --no-instagram --whisper-model tiny
 
+      - name: Run manual pipeline
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+          TTS_ENGINE: edge
+          TTS_VOICE: en-US-AriaNeural
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_BUSINESS_ID: ${{ secrets.INSTAGRAM_BUSINESS_ID }}
+          YOUTUBE_TOKEN_FILE: config/yt_token.json
+          LOG_LEVEL: INFO
         run: |
           YOUTUBE_FLAG=""
           INSTAGRAM_FLAG=""
@@ -105,11 +95,11 @@ jobs:
           python main.py $YOUTUBE_FLAG $INSTAGRAM_FLAG --whisper-model tiny
 
       - name: Upload logs as artifact
-        if: always()  # upload logs even if pipeline fails
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pipeline-logs-${{ github.run_id }}
-          path: logs/
+          path: auto_shorts/logs/
           retention-days: 7
 
       - name: Upload generated video as artifact
@@ -117,5 +107,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: generated-video-${{ github.run_id }}
-          path: output/videos/*.mp4
+          path: auto_shorts/output/videos/*.mp4
           retention-days: 3
