@@ -1,0 +1,37 @@
+# Auto Shorts Pipeline — requirements.txt
+# Install: pip install -r requirements.txt
+
+# ── LLM clients ────────────────────────
+google-genai>=1.0.0              # current Gemini SDK
+google-generativeai>=0.7.0       # legacy Gemini SDK fallback
+groq>=0.9.0                      # Groq free tier
+
+# ── TTS ────────────────────────────────
+edge-tts>=6.1.9                  # Microsoft Edge TTS (completely free, no key)
+
+# ── Video & Audio ───────────────────────
+moviepy>=1.0.3                   # video assembly
+imageio[ffmpeg]>=2.34.0          # ffmpeg backend for moviepy
+pydub>=0.25.1                    # audio manipulation
+
+# ── Whisper (local, free forever) ───────
+openai-whisper>=20231117         # runs on your machine, no API call
+
+# ── HTTP & Media download ───────────────
+requests>=2.31.0
+python-dotenv>=1.0.0
+aiohttp>=3.9.0                   # async downloads
+
+# ── YouTube upload ──────────────────────
+google-auth>=2.29.0
+google-auth-oauthlib>=1.2.0
+google-api-python-client>=2.127.0
+
+# ── Scheduler ──────────────────────────
+apscheduler>=3.10.4
+
+# ── Utilities ──────────────────────────
+Pillow>=10.0.0                   # image processing
+numpy>=1.24.0
+tqdm>=4.66.0                     # progress bars
+loguru>=0.7.2                    # better logging

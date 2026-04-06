@@ -1,0 +1,121 @@
+# .github/workflows/daily_video.yml
+# ─────────────────────────────────────────────
+# Runs the pipeline daily on GitHub Actions (FREE tier)
+# GitHub Actions free tier: 2,000 minutes/month
+# Each pipeline run takes ~10-15 minutes → ~60 runs/month
+# That's 2 videos per day for free!
+#
+# SETUP:
+# 1. Push your project to GitHub (private repo is fine)
+# 2. Go to: Settings → Secrets and variables → Actions
+# 3. Add all your .env values as Repository Secrets
+# 4. Push this file to .github/workflows/daily_video.yml
+# GitHub will automatically run it on schedule.
+
+name: Daily Auto Shorts Pipeline
+
+on:
+    schedule:
+    - cron: "0 4 * * *"
+    - cron: "0 7 * * *"
+    - cron: "0 10 * * *"
+    - cron: "0 13 * * *"
+    - cron: "0 16 * * *"
+
+    # Uncomment for twice daily (9 AM + 5 PM UTC):
+    # - cron: "0 9,17 * * *"
+
+  # Also allows manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      skip_youtube:
+        description: "Skip YouTube upload"
+        type: boolean
+        default: false
+      skip_instagram:
+        description: "Skip Instagram upload"
+        type: boolean
+        default: false
+
+jobs:
+  generate_and_upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30  # kill if it hangs
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version | head -1
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create config directory
+        run: mkdir -p config output/videos output/audio output/subtitles output/assets logs
+
+      - name: Write YouTube token from secret
+        if: ${{ !inputs.skip_youtube }}
+        run: echo '${{ secrets.YOUTUBE_TOKEN_JSON }}' > config/yt_token.json
+
+      - name: Write YouTube client secrets from secret
+        if: ${{ !inputs.skip_youtube }}
+        run: echo '${{ secrets.YOUTUBE_CLIENT_SECRETS_JSON }}' > config/yt_client_secrets.json
+
+      - name: Run pipeline
+        env:
+          # LLM
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
+
+          # Stock media
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
+
+          # TTS
+          TTS_ENGINE: edge
+          TTS_VOICE: en-US-AriaNeural
+
+          # Instagram
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_BUSINESS_ID: ${{ secrets.INSTAGRAM_BUSINESS_ID }}
+
+          # Settings
+          YOUTUBE_TOKEN_FILE: config/yt_token.json
+          LOG_LEVEL: INFO
+
+        run: |
+          YOUTUBE_FLAG=""
+          INSTAGRAM_FLAG=""
+          if [ "${{ inputs.skip_youtube }}" = "true" ]; then YOUTUBE_FLAG="--no-youtube"; fi
+          if [ "${{ inputs.skip_instagram }}" = "true" ]; then INSTAGRAM_FLAG="--no-instagram"; fi
+          python main.py $YOUTUBE_FLAG $INSTAGRAM_FLAG --whisper-model tiny
+
+      - name: Upload logs as artifact
+        if: always()  # upload logs even if pipeline fails
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-logs-${{ github.run_id }}
+          path: logs/
+          retention-days: 7
+
+      - name: Upload generated video as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-video-${{ github.run_id }}
+          path: output/videos/*.mp4
+          retention-days: 3
