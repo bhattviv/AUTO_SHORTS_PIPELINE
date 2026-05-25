@@ -1,4 +1,9 @@
 name: Daily Auto Shorts Pipeline
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  schedule:
 
 on:
   schedule:
