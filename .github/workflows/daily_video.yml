@@ -4,9 +4,6 @@ env:
 
 on:
   schedule:
-
-on:
-  schedule:
     - cron: "0 4 * * *"
     - cron: "0 7 * * *"
     - cron: "0 10 * * *"
