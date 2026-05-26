@@ -107,7 +107,7 @@ def generate_subtitles(
     logger.info(f"Transcribing: {audio_path.name}")
     result = model.transcribe(
         str(audio_path),
-        language="en",
+        language="hi",
         word_timestamps=False,  # segment-level is enough for SRT
         verbose=False,
     )

@@ -30,13 +30,9 @@ AUDIO_DIR = Path("output/audio")
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
 # Best edge-tts voices (all free):
-VOICE_OPTIONS = {
-    "male_us":     "en-US-GuyNeural",
-    "female_us":   "en-US-AriaNeural",       # default — sounds most natural
-    "male_uk":     "en-GB-RyanNeural",
-    "female_uk":   "en-GB-SoniaNeural",
-    "male_au":     "en-AU-NathanNeural",
-    "female_au":   "en-AU-NatashaNeural",
+HINDI_VOICE_OPTIONS = {
+    "hindi_female": "hi-IN-SwaraNeural",
+    "hindi_male":   "hi-IN-MadhurNeural",
 }
 
 
@@ -60,7 +56,7 @@ def generate_voiceover_edge(script: str, output_filename: str = "voiceover.mp3")
     Generate voiceover using edge-tts (free, no API key).
     This is the default and recommended method.
     """
-    voice = os.getenv("TTS_VOICE", "en-US-AriaNeural")
+    voice = os.getenv("TTS_VOICE", "hi-IN-SwaraNeural")
     output_path = AUDIO_DIR / output_filename
 
     logger.info(f"Generating voiceover with edge-tts, voice: {voice}")
